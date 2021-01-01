@@ -1,4 +1,6 @@
-# Easiest Stripe Integration (ever)
+# Stripe Service
+
+> Easiest stripe integration (ever) for Rapid SaaS development & deployment
 
 ## Features
 
