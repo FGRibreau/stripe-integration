@@ -8,7 +8,7 @@
 
 ## How to use
 
-Link your website pricing page to `https://app.tld.com/v1.0/checkout/{stripe_pricing_id}` where app.tld.com is where the current app is deployed.
+Link your website pricing page to `https://app.tld.com/v1.0/checkout/go/{stripe_pricing_id}` where app.tld.com is where the current app is deployed.
 
  
 ## Who use this?
