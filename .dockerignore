@@ -1,0 +1,4 @@
+.envrc
+.env
+target/*
+.idea

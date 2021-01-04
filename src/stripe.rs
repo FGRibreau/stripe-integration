@@ -153,7 +153,7 @@ mod unit_tests {
 #[allow(unused_imports)]
 mod integration_tests {
     use crate::config::Config;
-    use crate::stripe::{StripeClient, CheckoutSessionParam, CheckoutSessionMode, PaymentMethodType, LineItem};
+    use crate::stripe::{CheckoutSessionMode, CheckoutSessionParam, LineItem, PaymentMethodType, StripeClient};
 
     #[actix_rt::test]
     async fn stripe_create_checkout_session() {
