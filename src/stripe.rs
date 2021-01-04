@@ -108,6 +108,9 @@ impl StripeClient {
             .basic_auth::<String, String>(self.secret_key.clone(), None)
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Stripe-Version", self.version.clone())
+            // reqwest.form relies on "serde_urlencoded::to_string" that itself cannot serialize Vec<T>
+            // see: https://github.com/nox/serde_urlencoded/issues/46
+            // thus we rely on serde_qs to do the job
             .body(serde_qs::to_string(&params)?)
             .send()
             .await {
