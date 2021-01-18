@@ -13,10 +13,24 @@ pub struct StripeClient {
 #[derive(Debug, Serialize)]
 pub struct CheckoutSessionParam {
     pub mode: CheckoutSessionMode,
+    pub allow_promotion_codes: bool,
     pub success_url: String,
     pub cancel_url: String,
     pub payment_method_types: Vec<PaymentMethodType>,
     pub line_items: Vec<LineItem>,
+}
+
+impl Default for CheckoutSessionParam {
+    fn default() -> Self {
+        CheckoutSessionParam {
+            mode: CheckoutSessionMode::Subscription,
+            allow_promotion_codes: true,
+            success_url: "".to_string(),
+            cancel_url: "".to_string(),
+            payment_method_types: vec![PaymentMethodType::Card],
+            line_items: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,7 +45,6 @@ pub struct CheckoutSession {
     pub livemode: bool,
     pub mode: CheckoutSessionMode,
     pub payment_status: PaymentStatus,
-
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +65,7 @@ pub enum CheckoutSessionMode {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentMethodType {
-    Card
+    Card,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -92,7 +105,6 @@ pub struct StripeError {
     pub type_: Option<String>,
 }
 
-
 impl StripeClient {
     pub fn new(api_key: String) -> Self {
         StripeClient {
@@ -101,7 +113,10 @@ impl StripeClient {
             version: "2020-08-27".into(),
         }
     }
-    pub async fn create_checkout_session(&self, params: CheckoutSessionParam) -> Result<CheckoutSession, AppError> {
+    pub async fn create_checkout_session(
+        &self,
+        params: CheckoutSessionParam,
+    ) -> Result<CheckoutSession, AppError> {
         let client = reqwest::Client::new();
 
         match client.post(format!("{endpoint}/checkout/sessions", endpoint = self.endpoint).as_str())
@@ -113,25 +128,24 @@ impl StripeClient {
             // thus we rely on serde_qs to do the job
             .body(serde_qs::to_string(&params)?)
             .send()
-            .await {
-            Ok(response) => {
-                match response.status() {
-                    StatusCode::OK => {
-                        response.json::<CheckoutSession>().await.map_err(|x| x.into())
-                    }
-                    StatusCode::BAD_REQUEST => {
-                        Err(response.json::<StripeErrorResponse>().await?.into())
-                    }
-                    _ => {
-                        Err(AppError::UnsupportedStripeResponse { json: response.json::<Value>().await?.clone() })
-                    }
+            .await
+        {
+            Ok(response) => match response.status() {
+                StatusCode::OK => response
+                    .json::<CheckoutSession>()
+                    .await
+                    .map_err(|x| x.into()),
+                StatusCode::BAD_REQUEST => {
+                    Err(response.json::<StripeErrorResponse>().await?.into())
                 }
-            }
-            Err(error) => Err(error.into())
+                _ => Err(AppError::UnsupportedStripeResponse {
+                    json: response.json::<Value>().await?.clone(),
+                }),
+            },
+            Err(error) => Err(error.into()),
         }
     }
 }
-
 
 #[cfg(test)]
 #[allow(unused_imports)]
@@ -146,14 +160,17 @@ mod unit_tests {
             cancel_url: "http://localhost:8080/cancel_url".to_string(),
             payment_method_types: vec![PaymentMethodType::Card],
             line_items: vec![LineItem { price: "enterprise-2016".to_string(), quantity: 1 }],
-        }).unwrap(), @"mode=payment&success_url=http%3A%2F%2Flocalhost%3A8080%2Fsuccess_url&cancel_url=http%3A%2F%2Flocalhost%3A8080%2Fcancel_url&payment_method_types[0]=card&line_items[0][price]=enterprise-2016&line_items[0][quantity]=1")
+            ..CheckoutSessionParam::default()
+        }).unwrap(), @"mode=payment&allow_promotion_codes=true&success_url=http%3A%2F%2Flocalhost%3A8080%2Fsuccess_url&cancel_url=http%3A%2F%2Flocalhost%3A8080%2Fcancel_url&payment_method_types[0]=card&line_items[0][price]=enterprise-2016&line_items[0][quantity]=1")
     }
 }
 
 #[allow(unused_imports)]
 mod integration_tests {
     use crate::config::Config;
-    use crate::stripe::{CheckoutSessionMode, CheckoutSessionParam, LineItem, PaymentMethodType, StripeClient};
+    use crate::stripe::{
+        CheckoutSessionMode, CheckoutSessionParam, LineItem, PaymentMethodType, StripeClient,
+    };
 
     #[actix_rt::test]
     async fn stripe_create_checkout_session() {
@@ -161,18 +178,25 @@ mod integration_tests {
 
         let client = StripeClient::new(config.stripe_api_secret_key);
 
-        match client.create_checkout_session(CheckoutSessionParam {
-            mode: CheckoutSessionMode::Subscription,
-            success_url: "http://localhost:8080/success_url".to_string(),
-            cancel_url: "http://localhost:8080/cancel_url".to_string(),
-            payment_method_types: vec![PaymentMethodType::Card],
-            line_items: vec![LineItem { price: env!("TEST_VALID_PRICE_ID").to_string(), quantity: 1 }],
-        }).await {
+        match client
+            .create_checkout_session(CheckoutSessionParam {
+                mode: CheckoutSessionMode::Subscription,
+                success_url: "http://localhost:8080/success_url".to_string(),
+                cancel_url: "http://localhost:8080/cancel_url".to_string(),
+                payment_method_types: vec![PaymentMethodType::Card],
+                line_items: vec![LineItem {
+                    price: env!("TEST_VALID_PRICE_ID").to_string(),
+                    quantity: 1,
+                }],
+                ..CheckoutSessionParam::default()
+            })
+            .await
+        {
             Ok(session) => {
                 //println!("{:?}", session);
                 assert_eq!(session.id.is_empty(), false)
             }
-            Err(err) => panic!("{:#?}", err)
+            Err(err) => panic!("{:#?}", err),
         }
     }
 }

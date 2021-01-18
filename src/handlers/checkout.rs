@@ -1,5 +1,5 @@
-use actix_web::{Error, http, HttpRequest, HttpResponse, web};
 use actix_web::web::Data;
+use actix_web::{http, web, Error, HttpRequest, HttpResponse};
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -15,7 +15,8 @@ pub struct CheckoutParams {
 pub async fn display(params: web::Query<CheckoutParams>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok()
         .header("Content-type", "text/html")
-        .body(format!("
+        .body(format!(
+            "
 <!DOCTYPE html>
 <html lang='en'>
   <head>
@@ -36,15 +37,17 @@ pub async fn display(params: web::Query<CheckoutParams>) -> Result<HttpResponse,
    </script>
   </body>
 </html>
-", publishable_key = params.publishable_key, session_id = params.session_id)))
+",
+            publishable_key = params.publishable_key,
+            session_id = params.session_id
+        )))
 }
 
-pub async fn go(
-    api_state: Data<ApiState>,
-    req: HttpRequest,
-) -> Result<HttpResponse, Error> {
-    let price_id = req.match_info().get("price_id").ok_or_else(|| HttpResponse::NotFound().body("Plan ID required."))?;
-
+pub async fn go(api_state: Data<ApiState>, req: HttpRequest) -> Result<HttpResponse, Error> {
+    let price_id = req
+        .match_info()
+        .get("price_id")
+        .ok_or_else(|| HttpResponse::NotFound().body("Plan ID required."))?;
 
     let session = api_state.stripe_client.create_checkout_session(CheckoutSessionParam {
         mode: CheckoutSessionMode::Subscription,
@@ -55,20 +58,25 @@ pub async fn go(
             price: price_id.to_string(),
             quantity: 1,
         }],
+        ..CheckoutSessionParam::default()
     }).await.map_err(|x| {
         error!("{:?}", x);
         HttpResponse::InternalServerError().body("We could not contact our payment provider. Please try again or contact our support team.")
     })?;
 
-
     let query_params = serde_qs::to_string(&CheckoutParams {
         publishable_key: api_state.configuration.stripe_api_public_key.clone(),
         session_id: session.id,
-    }).map_err(|x| {
+    })
+    .map_err(|x| {
         error!("{:?}", x);
         HttpResponse::InternalServerError().body("An error occurred, please try again later.")
     })?;
 
-    let url = req.url_for_static("checkout_display").expect("could not reverse find the checkout url");
-    Ok(HttpResponse::TemporaryRedirect().header(http::header::LOCATION, format!("{}?{}", url, query_params)).finish())
+    let url = req
+        .url_for_static("checkout_display")
+        .expect("could not reverse find the checkout url");
+    Ok(HttpResponse::TemporaryRedirect()
+        .header(http::header::LOCATION, format!("{}?{}", url, query_params))
+        .finish())
 }

@@ -14,6 +14,7 @@ pub struct Config {
     pub stripe_api_public_key: String,
 
     // Stripe Checkout
+    pub stripe_allow_promotion_codes: bool,
     pub stripe_checkout_cancel_url: String,
     pub stripe_checkout_success_url: String,
 
