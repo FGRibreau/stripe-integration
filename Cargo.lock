@@ -2422,7 +2422,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stripe-integration"
-version = "1.0.1-alpha.0"
+version = "2.0.0"
 dependencies = [
  "actix",
  "actix-rt",
