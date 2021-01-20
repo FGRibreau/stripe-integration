@@ -33,7 +33,7 @@ impl Config {
 
         // Add in settings from the environment (with a prefix of APP)
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
-        s.merge(Environment::with_prefix("APP"))?;
+        s.merge(Environment::new())?;
         s.try_into().map_err(|e| e.into())
     }
 }
